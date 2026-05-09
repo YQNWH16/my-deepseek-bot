@@ -5,42 +5,38 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telethon import TelegramClient, events
 from groq import Groq
 
-# --- Simple Web Server to keep Render alive ---
+# --- Keep Render Alive ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Ai-16 is running on Groq!')
+        self.wfile.write(b'Ai-16 Groq Bot is Active!')
 
-def run_web_server():
+def run_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-threading.Thread(target=run_web_server, daemon=True).start()
+threading.Thread(target=run_server, daemon=True).start()
 
 # --- Configurations ---
 API_ID = 35148850
 API_HASH = '3426b7d98ab6a3599cd5b28925d1fcdd'
 BOT_TOKEN = '8795982407:AAGs3_LFSa4qwWTEAC0i_m-T-qMPzWm-4JM'
-# Make sure this matches the key name in Render Environment
+# Use the exact name from Render Environment
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    print("CRITICAL ERROR: GROQ_API_KEY not found in environment variables!")
+    print("CRITICAL ERROR: GROQ_API_KEY not found in environment!")
     sys.exit(1)
 
-# --- Initialize Clients ---
-try:
-    client = Groq(api_key=GROQ_API_KEY)
-    tg_client = TelegramClient('ai16_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-except Exception as e:
-    print(f"Startup Error: {e}")
-    sys.exit(1)
+# --- Clients Setup ---
+client = Groq(api_key=GROQ_API_KEY)
+tg_client = TelegramClient('ai16_groq_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 @tg_client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply("Ai-16 (Groq) is online and ready!")
+    await event.reply("Ai-16 (Groq) is ready to help you!")
 
 @tg_client.on(events.NewMessage)
 async def handle_message(event):
@@ -49,6 +45,7 @@ async def handle_message(event):
 
     try:
         async with tg_client.action(event.chat_id, 'typing'):
+            # Llama-3.3-70b is highly capable and free on Groq
             chat_completion = client.chat.completions.create(
                 messages=[{"role": "user", "content": event.text}],
                 model="llama-3.3-70b-versatile",
@@ -56,8 +53,8 @@ async def handle_message(event):
             response = chat_completion.choices[0].message.content
             await event.reply(response)
     except Exception as e:
-        print(f"Chat Error: {e}")
-        await event.reply("Sorry, I'm experiencing a temporary connection issue.")
+        print(f"Error: {e}")
+        await event.reply("Request limit reached or connection issue. Please wait 10 seconds.")
 
-print("Bot deployed successfully. Listening for messages...")
+print("Bot is listening...")
 tg_client.run_until_disconnected()
