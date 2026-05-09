@@ -4,12 +4,12 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telethon import TelegramClient, events
 import google.generativeai as genai
 
-# --- Render Web Server (Render အမြဲနိုးနေစေရန်) ---
+# --- Render Web Server ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Ai-16 is Running!')
+        self.wfile.write(b'Ai-16 Online!')
 
 threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever(), daemon=True).start()
 
@@ -17,22 +17,21 @@ threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT"
 API_ID = 35148850
 API_HASH = '3426b7d98ab6a3599cd5b28925d1fcdd'
 BOT_TOKEN = '8795982407:AAGs3_LFSa4qwWTEAC0i_m-T-qMPzWm-4JM'
-# Render Environment ထဲက Key ကို ဖတ်ခြင်း
 GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-# Gemini Setup
+# Gemini Configure
 genai.configure(api_key=GEMINI_API_KEY)
 
-# --- 404 Error မတက်စေရန် Model အမည်ကို ပြင်ဆင်ခြင်း ---
-# ရှေ့က 'models/' ကို ဖြုတ်လိုက်ပါသည်
+# 404 Error ဖြေရှင်းရန် Model ခေါ်ပုံကို ပြောင်းလဲထားသည်
+# models/ ဆိုတာကို ဖယ်ထုတ်လိုက်ပါသည်
 model = genai.GenerativeModel('gemini-1.5-flash')
 chat_sessions = {}
 
-tg_client = TelegramClient('ai16_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+tg_client = TelegramClient('ai16_fix_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 @tg_client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply("Ai-16 အသင့်ရှိပါပြီ။ ဘာမေးချင်ပါသလဲ?")
+    await event.reply("Ai-16 (Gemini Flash) အသင့်ရှိနေပါပြီ။ ဘာမေးချင်ပါသလဲ?")
 
 @tg_client.on(events.NewMessage)
 async def handle_chat(event):
@@ -43,18 +42,18 @@ async def handle_chat(event):
         chat_sessions[user_id] = model.start_chat(history=[])
 
     try:
-        # Typing status ပြပေးခြင်း
         async with tg_client.action(event.chat_id, 'typing'):
+            # Gemini ဆီသို့ စာပို့ခြင်း
             response = chat_sessions[user_id].send_message(event.text)
             await event.reply(response.text)
     except Exception as e:
         print(f"Error: {e}")
-        # အမှားတက်ရင် တစ်ခါပြန်စမ်းကြည့်ဖို့ ကြိုးစားခြင်း
+        # Error တက်လျှင် Session အသစ်ဖြင့် ပြန်စမ်းသည်
         try:
-            res = model.generate_content(event.text)
-            await event.reply(res.text)
+            new_res = model.generate_content(event.text)
+            await event.reply(new_res.text)
         except:
-            await event.reply("ခဏနေမှ ပြန်မေးကြည့်ပေးပါဦး။")
+            await event.reply("ခဏတာ အမှားရှိနေပါတယ်။ API Key သို့မဟုတ် Region ကို ပြန်စစ်ပေးပါ။")
 
-print("Bot is successfully starting...")
+print("Ai-16 is starting...")
 tg_client.run_until_disconnected()
