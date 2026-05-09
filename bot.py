@@ -4,12 +4,12 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telethon import TelegramClient, events
 import google.generativeai as genai
 
-# --- Render Web Server (Port error မတက်စေရန်) ---
+# --- Render Web Server (Render အမြဲနိုးနေစေရန်) ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Ai-16 is Active and Online!')
+        self.wfile.write(b'Ai-16 is Running!')
 
 threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever(), daemon=True).start()
 
@@ -23,7 +23,8 @@ GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 # Gemini Setup
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Model ကို နာမည်အတိုကောက်ဖြင့် ပြောင်းလဲသတ်မှတ်ခြင်း (404 Error ဖြေရှင်းရန်)
+# --- 404 Error မတက်စေရန် Model အမည်ကို ပြင်ဆင်ခြင်း ---
+# ရှေ့က 'models/' ကို ဖြုတ်လိုက်ပါသည်
 model = genai.GenerativeModel('gemini-1.5-flash')
 chat_sessions = {}
 
@@ -35,7 +36,6 @@ async def start(event):
 
 @tg_client.on(events.NewMessage)
 async def handle_chat(event):
-    # Private chat မဟုတ်လျှင် သို့မဟုတ် Command ဖြစ်လျှင် ကျော်သွားမည်
     if not event.is_private or event.text.startswith('/'): return
     
     user_id = event.sender_id
@@ -49,14 +49,12 @@ async def handle_chat(event):
             await event.reply(response.text)
     except Exception as e:
         print(f"Error: {e}")
-        # Error တက်ခဲ့လျှင် Session အသစ်ပြန်စပြီး ထပ်စမ်းကြည့်ခြင်း
+        # အမှားတက်ရင် တစ်ခါပြန်စမ်းကြည့်ဖို့ ကြိုးစားခြင်း
         try:
-            new_chat = model.start_chat(history=[])
-            res = new_chat.send_message(event.text)
+            res = model.generate_content(event.text)
             await event.reply(res.text)
-            chat_sessions[user_id] = new_chat
         except:
-            await event.reply("ခဏနေမှ ပြန်မေးကြည့်ပေးပါဦးခင်ဗျာ။")
+            await event.reply("ခဏနေမှ ပြန်မေးကြည့်ပေးပါဦး။")
 
-print("Ai-16 is running successfully...")
+print("Bot is successfully starting...")
 tg_client.run_until_disconnected()
