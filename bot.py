@@ -4,7 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telethon import TelegramClient, events
 import google.generativeai as genai
 
-# --- Render Web Server ---
+# --- Web Server for Render ---
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -13,18 +13,18 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
 threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever(), daemon=True).start()
 
-# --- Configs ---
+# --- Configurations ---
 API_ID = 35148850
 API_HASH = '3426b7d98ab6a3599cd5b28925d1fcdd'
 BOT_TOKEN = '8795982407:AAGs3_LFSa4qwWTEAC0i_m-T-qMPzWm-4JM'
-GEMINI_API_KEY = 'AIzaSyA4loi7oX_d0csvWhPWcgqpmzS4N-dm_tk'
 
-# Gemini Setup
+# Render Environment ထဲက Key ကို အလိုအလျောက် ဖတ်ယူခြင်း
+GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
 genai.configure(api_key=GEMINI_API_KEY)
-# မြန်မာစာ ဖြေဆိုမှု အားရစေရန် Instruction ထည့်ခြင်း
 model = genai.GenerativeModel(
     model_name='gemini-1.5-flash',
-    system_instruction="သင်သည် Ai-16 အမည်ရှိသော အသိဉာဏ်မြင့် AI တစ်ဦးဖြစ်သည်။ မြန်မာဘာသာစကားကို အသုံးပြု၍ လူသားတစ်ယောက်ကဲ့သို့ သဘာဝကျကျ၊ ပြည့်စုံစွာနှင့် ယဉ်ကျေးစွာ ပြန်လည်ဖြေကြားပေးပါ။"
+    system_instruction="သင်သည် Ai-16 ဖြစ်သည်။ မြန်မာဘာသာစကားဖြင့် သဘာဝကျကျနှင့် ယဉ်ကျေးစွာ ဖြေကြားပေးပါ။"
 )
 chat_sessions = {}
 
@@ -32,12 +32,7 @@ tg_client = TelegramClient('ai16_gemini_session', API_ID, API_HASH).start(bot_to
 
 @tg_client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    welcome_msg = (
-        "Ai-16 မှ ကြိုဆိုပါတယ်။\n"
-        "သင့်အနေနှင့် သိလိုသည်များကို မေးနိုင်ပြီး "
-        "Ai-16 မှ မြန်ဆန်မှန်ကန်သော အဖြေများကိုပြောပြသွားပါမည်။"
-    )
-    await event.reply(welcome_msg)
+    await event.reply("Ai-16 မှ ကြိုဆိုပါတယ်။ ဘာများ ကူညီပေးရမလဲခင်ဗျာ။")
 
 @tg_client.on(events.NewMessage)
 async def handle_chat(event):
@@ -49,14 +44,11 @@ async def handle_chat(event):
 
     async with tg_client.action(event.chat_id, 'typing'):
         try:
-            # Gemini ထံမှ အဖြေတောင်းခြင်း
             response = chat_sessions[user_id].send_message(event.text)
             await event.reply(response.text)
         except Exception as e:
             print(f"Error: {e}")
-            # Error ဖြစ်ပါက Session အသစ်ပြန်စရန်
-            chat_sessions[user_id] = model.start_chat(history=[])
-            await event.reply("တောင်းပန်ပါတယ်ခင်ဗျာ၊ ခဏတာ အမှားရှိနေလို့ နောက်တစ်ခါ ပြန်မေးကြည့်ပေးပါဦး။")
+            await event.reply("ခဏတာ အမှားရှိနေလို့ နောက်မှ ပြန်မေးကြည့်ပေးပါဦး။")
 
-print("Ai-16 Gemini Bot is running...")
+print("Ai-16 is running...")
 tg_client.run_until_disconnected()
