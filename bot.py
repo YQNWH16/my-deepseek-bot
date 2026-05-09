@@ -1,59 +1,65 @@
 import os
 import threading
-import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telethon import TelegramClient, events
 from groq import Groq
 
-# --- Web Server for Render Port Check ---
+# 1. Render မှာ Bot မအိပ်သွားအောင် Web Server အသေးစားလေး တစ်ခု တည်ဆောက်ခြင်း
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Ai-16 is running on Groq!')
+        self.wfile.write(b'AI Bot is Running!')
 
-def run_server():
+def run_web_server():
+    # Render က ပေးတဲ့ Port ကို အသုံးပြုခြင်း
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    print(f"Web server started on port {port}")
     server.serve_forever()
 
-threading.Thread(target=run_server, daemon=True).start()
+# Web Server ကို Background မှာ သီးသန့် Run ထားခြင်း
+threading.Thread(target=run_web_server, daemon=True).start()
 
-# --- Configs ---
+# 2. --- Configurations (သင့်ရဲ့ အချက်အလက်များ) ---
 API_ID = 35148850
 API_HASH = '3426b7d98ab6a3599cd5b28925d1fcdd'
 BOT_TOKEN = '8795982407:AAGs3_LFSa4qwWTEAC0i_m-T-qMPzWm-4JM'
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GROQ_API_KEY = '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'
 
-if not GROQ_API_KEY:
-    print("CRITICAL ERROR: GROQ_API_KEY is not set in Render environment.")
-    sys.exit(1)
+# 3. AI Client နှင့် Telegram Client ကို ချိတ်ဆက်ခြင်း
+groq_client = Groq(api_key=GROQ_API_KEY)
+tg_client = TelegramClient('ai_bot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
-# --- Start Clients ---
-try:
-    client = Groq(api_key=GROQ_API_KEY)
-    tg_client = TelegramClient('ai16_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-except Exception as e:
-    print(f"Failed to start: {e}")
-    sys.exit(1)
-
+# /start command အတွက် အလုပ်လုပ်ပုံ
 @tg_client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply("Ai-16 is active. Send me a message!")
+    await event.reply("မင်္ဂလာပါ။ ကျွန်တော်က Groq AI (Llama 3) Bot ဖြစ်ပါတယ်။ ဘာမေးချင်ပါသလဲခင်ဗျာ။")
 
+# စာရိုက်လိုက်တိုင်း အဖြေပြန်ပေးမည့် အပိုင်း
 @tg_client.on(events.NewMessage)
-async def handle_message(event):
-    if not event.is_private or event.text.startswith('/'):
-        return
-    try:
+async def chat(event):
+    # Private chat ဖြစ်ရမည်၊ စာသားပါရမည်၊ Command မဟုတ်ရပါ
+    if event.is_private and event.text and not event.text.startswith('/'):
         async with tg_client.action(event.chat_id, 'typing'):
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": event.text}],
-                model="llama-3.3-70b-versatile",
-            )
-            await event.reply(chat_completion.choices[0].message.content)
-    except Exception as e:
-        print(f"Chat Error: {e}")
+            try:
+                # Groq AI ဆီက အဖြေတောင်းခြင်း
+                completion = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant who speaks Myanmar and English fluently."},
+                        {"role": "user", "content": event.text}
+                    ],
+                )
+                
+                # ရလာတဲ့ အဖြေကို Telegram သို့ ပြန်ပို့ခြင်း
+                answer = completion.choices[0].message.content
+                await event.reply(answer)
+                
+            except Exception as e:
+                # Error တက်ခဲ့ရင် Logs မှာ ကြည့်နိုင်ရန်
+                print(f"Error occurred: {e}")
+                await event.reply("ခဏတာ အမှားအယွင်းရှိနေလို့ နောက်မှ ပြန်မေးပေးပါခင်ဗျာ။")
 
-print("Bot is listening for messages...")
+print("Bot is successfully starting...")
 tg_client.run_until_disconnected()
