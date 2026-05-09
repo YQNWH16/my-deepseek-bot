@@ -9,7 +9,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Stable Groq AI Bot is Online!')
+        self.wfile.write(b'Ai-16 Bot is Online!')
 
 threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever(), daemon=True).start()
 
@@ -20,14 +20,20 @@ BOT_TOKEN = '8795982407:AAGs3_LFSa4qwWTEAC0i_m-T-qMPzWm-4JM'
 GROQ_API_KEY = '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'
 
 client = Groq(api_key=GROQ_API_KEY)
-tg_client = TelegramClient('stable_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+tg_client = TelegramClient('ai16_stable_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 # Memory သိမ်းရန်
 user_memory = {}
 
 @tg_client.on(events.NewMessage(pattern='/start'))
 async def start(event):
-    await event.reply("မင်္ဂလာပါ။ Groq AI Bot အဆင်သင့်ရှိပါတယ်။\n- /draw [စာသား] နဲ့ ပုံဆွဲခိုင်းလို့ရပါတယ်။\n- စာသားတွေကိုလည်း မှတ်မိနေမှာ ဖြစ်ပါတယ်။")
+    # သင်အလိုရှိသော စာသားအတိအကျ
+    welcome_msg = (
+        "Ai-16 မှ ကြိုဆိုပါတယ်။\n"
+        "သင့်အနေနှင့် သိလိုသည်များကို မေးနိုင်ပြီး "
+        "Ai-16 မှ မြန်ဆန်မှန်ကန်သော အဖြေများကိုပြောပြသွားပါမည်။"
+    )
+    await event.reply(welcome_msg)
 
 @tg_client.on(events.NewMessage(pattern='/draw'))
 async def draw(event):
@@ -45,13 +51,12 @@ async def handle_chat(event):
     if user_id not in user_memory: user_memory[user_id] = []
 
     async with tg_client.action(event.chat_id, 'typing'):
-        # Memory ထဲ စာထည့်ခြင်း
         user_memory[user_id].append({"role": "user", "content": event.text})
-        context = user_memory[user_id][-6:] # နောက်ဆုံး စကား ၆ ခွန်း မှတ်ထားပေးမည်
+        context = user_memory[user_id][-6:] 
 
         try:
             res = client.chat.completions.create(
-                messages=[{"role": "system", "content": "You are a helpful Myanmar AI assistant with memory."}] + context,
+                messages=[{"role": "system", "content": "You are Ai-16, a helpful Myanmar AI assistant."}] + context,
                 model="llama-3.3-70b-versatile",
             )
             answer = res.choices[0].message.content
@@ -61,5 +66,5 @@ async def handle_chat(event):
             print(f"Error: {e}")
             await event.reply("ခဏတာ အမှားရှိနေပါတယ်။")
 
-print("Bot is successfully running with Groq...")
+print("Ai-16 Bot is starting...")
 tg_client.run_until_disconnected()
