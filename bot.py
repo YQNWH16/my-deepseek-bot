@@ -2,12 +2,11 @@ import os
 import requests
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-from dotenv import load_dotenv
 
-# .env file ကို load လုပ်ပါ (Render local run/dev ကိုင်ခိုင်း)
-load_dotenv()
+# .env တပ်ဖို့လိုရင် (localdev မှာ commenting ထား)
+# from dotenv import load_dotenv
+# load_dotenv()
 
-# .env ထဲမှာ သတ်မှတ်ထားတဲ့ Key ကိုသုံးပါ
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
