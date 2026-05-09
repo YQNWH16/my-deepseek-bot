@@ -9,7 +9,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b'Ai-16 Online!')
+        self.wfile.write(b'Ai-16 is Online!')
 
 threading.Thread(target=lambda: HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), SimpleHTTPRequestHandler).serve_forever(), daemon=True).start()
 
@@ -23,7 +23,7 @@ GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
 # 404 Error ဖြေရှင်းရန် Model ခေါ်ပုံကို ပြောင်းလဲထားသည်
-# models/ ဆိုတာကို ဖယ်ထုတ်လိုက်ပါသည်
+# models/ ဆိုတာကို ဖယ်ထုတ်ပြီး တိုက်ရိုက်ခေါ်ထားပါသည်
 model = genai.GenerativeModel('gemini-1.5-flash')
 chat_sessions = {}
 
@@ -43,17 +43,16 @@ async def handle_chat(event):
 
     try:
         async with tg_client.action(event.chat_id, 'typing'):
-            # Gemini ဆီသို့ စာပို့ခြင်း
             response = chat_sessions[user_id].send_message(event.text)
             await event.reply(response.text)
     except Exception as e:
         print(f"Error: {e}")
-        # Error တက်လျှင် Session အသစ်ဖြင့် ပြန်စမ်းသည်
         try:
+            # တိုက်ရိုက် generate လုပ်ကြည့်ခြင်း
             new_res = model.generate_content(event.text)
             await event.reply(new_res.text)
         except:
-            await event.reply("ခဏတာ အမှားရှိနေပါတယ်။ API Key သို့မဟုတ် Region ကို ပြန်စစ်ပေးပါ။")
+            await event.reply("ခဏနေမှ ပြန်မေးကြည့်ပေးပါဦးခင်ဗျာ။")
 
 print("Ai-16 is starting...")
 tg_client.run_until_disconnected()
