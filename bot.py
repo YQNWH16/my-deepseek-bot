@@ -1,44 +1,62 @@
 import os
-import requests
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+import threading
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from telethon import TelegramClient, events
+from groq import Groq
 
-# .env တပ်ဖို့လိုရင် (localdev မှာ commenting ထား)
-# from dotenv import load_dotenv
-# load_dotenv()
+# --- Step 1: Render Port Binding Fix ---
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Ai-16 is Online!')
 
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_web_server, daemon=True).start()
+
+# --- Step 2: API Configurations ---
+API_ID = 35148850
+API_HASH = '3426b7d98ab6a3599cd5b28925d1fcdd'
+BOT_TOKEN = '8625448440:AAExyh2aWcCZqlZ-PEyYe1o-sMLDkAjYy8o'
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 
-if not GROQ_API_KEY or not TELEGRAM_BOT_TOKEN:
-    raise Exception("GROQ_API_KEY or TELEGRAM_BOT_TOKEN is missing in environment variables!")
+if not GROQ_API_KEY:
+    print("CRITICAL ERROR: GROQ_API_KEY not found in environment variables!")
+    sys.exit(1)
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama3-70b-8192"
+# --- Step 3: Clients Initialization ---
+client = Groq(api_key=GROQ_API_KEY)
+tg_client = TelegramClient('ai16_session_v2', API_ID, API_HASH)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
+@tg_client.on(events.NewMessage(pattern='/start'))
+async def start(event):
+    await event.reply("Ai-16 is now online. I am ready to assist you!")
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": [{"role": "user", "content": user_message}]
-    }
+@tg_client.on(events.NewMessage)
+async def handle_chat(event):
+    if not event.is_private or event.text.startswith('/'):
+        return
+
     try:
-        resp = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=20)
-        if resp.status_code == 200:
-            output = resp.json()["choices"][0]["message"]["content"]
-            await update.message.reply_text(output.strip())
-        else:
-            await update.message.reply_text(f"Groq API error: {resp.status_code}\n{resp.text}")
+        async with tg_client.action(event.chat_id, 'typing'):
+            # Using Llama 3.3 70B for fast and accurate responses
+            chat_completion = client.chat.completions.create(
+                messages=[{"role": "user", "content": event.text}],
+                model="llama-3.3-70b-versatile",
+            )
+            response_text = chat_completion.choices[0].message.content
+            await event.reply(response_text)
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        print(f"Error: {e}")
+        # Simple error handling for request limits
+        await event.reply("System is currently busy. Please try again in 5 seconds.")
 
-if __name__ == "__main__":
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    print("Bot is running ...")
-    app.run_polling()
+# --- Step 4: Run Bot ---
+print("Bot deployment starting...")
+tg_client.start(bot_token=BOT_TOKEN)
+tg_client.run_until_disconnected()
