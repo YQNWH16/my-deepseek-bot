@@ -1,3 +1,2 @@
 telethon
-groq
-httpx
+google-generativeai
